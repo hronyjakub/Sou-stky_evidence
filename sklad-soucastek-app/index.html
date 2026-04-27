@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sklad soucastek</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Sprava skladu elektronickych soucastek</h1>
+    <p>Eviduj zaskladneni, vyhledavej podle parametru a najdi presny suplik.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Zaskladneni soucastky</h2>
+      <form id="component-form">
+        <input type="hidden" id="component-id">
+        <div class="form-grid">
+          <label>
+            Nazev soucastky *
+            <input id="name" type="text" required placeholder="napr. Rezistor 10k 1%">
+          </label>
+          <label>
+            Typ *
+            <select id="category" required>
+              <option value="">Vyber typ</option>
+              <option value="passive">Passive</option>
+              <option value="active">Active</option>
+              <option value="connector">Connector</option>
+              <option value="other">Jine</option>
+            </select>
+          </label>
+          <label>
+            Hodnota / Parametr
+            <input id="value" type="text" placeholder="10k, 100nF, ATmega328P...">
+          </label>
+          <label>
+            Pouzdro
+            <input id="package" type="text" placeholder="0805, SOIC-8, THT...">
+          </label>
+          <label>
+            Vyrobce
+            <input id="manufacturer" type="text" placeholder="napr. TI, ST, Vishay...">
+          </label>
+          <label>
+            Mnozstvi
+            <input id="quantity" type="number" min="0" step="1" value="1">
+          </label>
+          <label>
+            Kriticke mnozstvi
+            <input id="criticalQuantity" type="number" min="0" step="1" value="0">
+          </label>
+          <label>
+            Poradac *
+            <select id="organizer" required></select>
+          </label>
+          <label>
+            <span id="row-label">Radek (1-5) *</span>
+            <input id="row" type="number" min="1" max="5" step="1" required>
+          </label>
+          <label>
+            <span id="col-label">Sloupec (1-12) *</span>
+            <input id="col" type="number" min="1" max="12" step="1" required>
+          </label>
+          <label class="full-width">
+            Odkaz na datasheet
+            <input id="datasheetUrl" type="url" placeholder="https://...">
+          </label>
+          <label class="full-width">
+            Odkaz na ECAD model
+            <input id="ecadUrl" type="url" placeholder="https://...">
+          </label>
+          <label class="full-width">
+            Poznamka
+            <textarea id="note" rows="3" placeholder="Vyrobce, PN, vlastni poznamky..."></textarea>
+          </label>
+        </div>
+        <div class="actions">
+          <button type="submit" id="submit-btn">Ulozit soucastku</button>
+          <button type="button" id="reset-btn" class="secondary">Vymazat formular</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Sprava poradacu</h2>
+      <form id="organizer-form">
+        <input type="hidden" id="organizer-id">
+        <div class="form-grid">
+          <label>
+            Cislo poradace *
+            <input id="organizer-number" type="number" min="1" step="1" required>
+          </label>
+          <label>
+            Nazev poradace
+            <input id="organizer-name" type="text" placeholder="napr. Pasivy 0805">
+          </label>
+          <label>
+            Radky *
+            <input id="organizer-rows" type="number" min="1" step="1" value="5" required>
+          </label>
+          <label>
+            Sloupce *
+            <input id="organizer-cols" type="number" min="1" step="1" value="12" required>
+          </label>
+        </div>
+        <div class="actions inline-actions">
+          <button type="submit" id="organizer-submit-btn">Ulozit poradac</button>
+          <button type="button" id="organizer-reset-btn" class="secondary">Vymazat formular</button>
+        </div>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Cislo</th>
+              <th>Nazev</th>
+              <th>Format</th>
+              <th>Polozek</th>
+              <th>Akce</th>
+            </tr>
+          </thead>
+          <tbody id="organizer-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Filtr a hledani</h2>
+      <div class="filters">
+        <label>
+          Fulltext
+          <input id="filter-text" type="text" placeholder="nazev, hodnota, pouzdro, poznamka...">
+        </label>
+        <label>
+          Typ
+          <select id="filter-category">
+            <option value="">Vsechny typy</option>
+            <option value="passive">Passive</option>
+            <option value="active">Active</option>
+            <option value="connector">Connector</option>
+            <option value="other">Jine</option>
+          </select>
+        </label>
+        <label>
+          Hodnota obsahuje
+          <input id="filter-value" type="text" placeholder="napr. 10k">
+        </label>
+        <label>
+          Pouzdro obsahuje
+          <input id="filter-package" type="text" placeholder="napr. 0805">
+        </label>
+        <label>
+          Vyrobce obsahuje
+          <input id="filter-manufacturer" type="text" placeholder="napr. ST">
+        </label>
+        <label>
+          Poradac
+          <select id="filter-organizer">
+            <option value="">Vsechny</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input id="filter-low-stock" type="checkbox">
+          Pouze pod kritickym mnozstvim
+        </label>
+      </div>
+      <div class="actions inline-actions">
+        <button type="button" id="print-filtered-btn" class="secondary">Vytisknout aktualni vyber</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Prehled soucastek</h2>
+      <div id="result-count"></div>
+      <div id="critical-summary" class="critical-summary"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nazev</th>
+              <th>Typ</th>
+              <th>Hodnota</th>
+              <th>Pouzdro</th>
+              <th>Vyrobce</th>
+              <th>Mnozstvi</th>
+              <th>Kriticke</th>
+              <th>Umisteni</th>
+              <th>Odkazy</th>
+              <th>Akce</th>
+            </tr>
+          </thead>
+          <tbody id="component-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Porovnani BOM (Altium / KiCad)</h2>
+      <p class="hint">Nahraj CSV/TSV BOM a system porovna pozadovane mnozstvi se skladovymi zasobami.</p>
+      <div class="bom-controls">
+        <label class="full-width">
+          Soubor BOM
+          <input id="bom-file" type="file" accept=".csv,.tsv,.txt">
+        </label>
+        <div class="actions inline-actions">
+          <button type="button" id="compare-bom-btn">Porovnat BOM</button>
+          <button type="button" id="clear-bom-btn" class="secondary">Vymazat vysledky BOM</button>
+        </div>
+      </div>
+      <div id="bom-summary" class="bom-summary"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Polozka BOM</th>
+              <th>Potreba</th>
+              <th>Skladem</th>
+              <th>Stav</th>
+              <th>Najit</th>
+            </tr>
+          </thead>
+          <tbody id="bom-table-body">
+            <tr>
+              <td colspan="5" class="empty-state">Zatim nejsou nacteny zadne BOM vysledky.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 id="visual-title">Vizualizace suplikoveho poradace</h2>
+      <label class="visual-select">
+        Zobrazit poradac:
+        <select id="visual-organizer"></select>
+      </label>
+      <div id="visual-grid" class="grid"></div>
+      <p class="hint">Klikni na "Zvyraznit" v tabulce pro nalezeni konkretni soucastky.</p>
+    </section>
+  </main>
+
+  <template id="empty-state-template">
+    <tr>
+      <td colspan="10" class="empty-state">Zatim nejsou zadne soucastky.</td>
+    </tr>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
