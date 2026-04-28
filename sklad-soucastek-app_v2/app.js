@@ -59,6 +59,7 @@ const organizerNumber = document.getElementById("organizer-number");
 const organizerName = document.getElementById("organizer-name");
 const organizerRows = document.getElementById("organizer-rows");
 const organizerCols = document.getElementById("organizer-cols");
+const organizerRowLayout = document.getElementById("organizer-row-layout");
 const organizerSubmitBtn = document.getElementById("organizer-submit-btn");
 const organizerResetBtn = document.getElementById("organizer-reset-btn");
 const organizerTableBody = document.getElementById("organizer-table-body");
@@ -125,6 +126,7 @@ function bootstrap() {
   });
   resetBtn.addEventListener("click", resetForm);
   fields.organizer.addEventListener("change", onComponentOrganizerChange);
+  fields.row.addEventListener("change", onComponentRowChange);
   visualOrganizer.addEventListener("change", renderAll);
   printFilteredBtn.addEventListener("click", printFilteredList);
   compareBomBtn.addEventListener("click", onCompareBom);
@@ -182,9 +184,10 @@ function onSubmit(event) {
     payload.row < 1 ||
     payload.col < 1 ||
     payload.row > selectedOrganizer.rows ||
-    payload.col > selectedOrganizer.cols
+    payload.col > getSlotsForRow(selectedOrganizer, payload.row)
   ) {
-    alert(`Pozice musi byt v rozsahu R1-${selectedOrganizer.rows}, S1-${selectedOrganizer.cols}.`);
+    const maxSlots = getSlotsForRow(selectedOrganizer, payload.row);
+    alert(`Pozice musi byt v rozsahu R1-${selectedOrganizer.rows}, S1-${maxSlots} pro vybrany radek.`);
     return;
   }
 
@@ -269,6 +272,10 @@ function onComponentOrganizerChange() {
   applyOrganizerLimitsToComponentForm(Number(fields.organizer.value));
 }
 
+function onComponentRowChange() {
+  applyOrganizerLimitsToComponentForm(Number(fields.organizer.value));
+}
+
 function processSearchQrInput() {
   const raw = searchQrInput.value.trim();
   if (!raw) {
@@ -298,6 +305,7 @@ function onOrganizerSubmit(event) {
   const name = organizerName.value.trim();
   const rows = toNonNegativeInt(organizerRows.value);
   const cols = toNonNegativeInt(organizerCols.value);
+  const rowLayout = organizerRowLayout.value.trim();
   const editingNumber = organizerId.value ? Number(organizerId.value) : null;
 
   if (number <= 0) {
@@ -306,6 +314,12 @@ function onOrganizerSubmit(event) {
   }
   if (rows <= 0 || cols <= 0) {
     alert("Format poradace musi mit alespon 1 radek a 1 sloupec.");
+    return;
+  }
+
+  const parsedLayout = parseRowLayout(rowLayout, rows, cols);
+  if (!parsedLayout.valid) {
+    alert(parsedLayout.errorMessage);
     return;
   }
 
@@ -318,7 +332,9 @@ function onOrganizerSubmit(event) {
   if (editingNumber !== null) {
     const componentsInOrganizer = components.filter((component) => component.organizer === editingNumber);
     const outsideBounds = componentsInOrganizer.find(
-      (component) => component.row > rows || component.col > cols
+      (component) =>
+        component.row > rows ||
+        component.col > getSlotsForRow({ rows, cols, rowLayout }, component.row)
     );
     if (outsideBounds) {
       alert(
@@ -329,7 +345,7 @@ function onOrganizerSubmit(event) {
 
     organizers = organizers.map((org) =>
       org.number === editingNumber
-        ? { number, name: name || `Poradac ${number}`, rows, cols }
+        ? { number, name: name || `Poradac ${number}`, rows, cols, rowLayout }
         : org
     );
 
@@ -350,6 +366,7 @@ function onOrganizerSubmit(event) {
       name: name || `Poradac ${number}`,
       rows,
       cols,
+      rowLayout,
     });
   }
 
@@ -363,6 +380,7 @@ function resetOrganizerForm() {
   organizerId.value = "";
   organizerRows.value = "5";
   organizerCols.value = "12";
+  organizerRowLayout.value = "";
   organizerSubmitBtn.textContent = "Ulozit poradac";
 }
 
@@ -379,6 +397,7 @@ function onOrganizerTableAction(event) {
     organizerName.value = organizer.name;
     organizerRows.value = String(organizer.rows);
     organizerCols.value = String(organizer.cols);
+    organizerRowLayout.value = organizer.rowLayout || "";
     organizerSubmitBtn.textContent = "Ulozit zmeny poradace";
     return;
   }
@@ -441,6 +460,7 @@ function loadOrganizers() {
             name: String(item.name || "").trim(),
             rows: toNonNegativeInt(item.rows) || 5,
             cols: toNonNegativeInt(item.cols) || 12,
+            rowLayout: String(item.rowLayout || "").trim(),
           }))
           .filter((item) => item.number > 0);
         if (normalized.length > 0) {
@@ -458,11 +478,11 @@ function loadOrganizers() {
 function buildOrganizersFromComponents() {
   const numbers = [...new Set(components.map((item) => item.organizer))].filter((n) => n > 0);
   if (numbers.length === 0) {
-    return [{ number: 1, name: "Poradac 1", rows: 5, cols: 12 }];
+    return [{ number: 1, name: "Poradac 1", rows: 5, cols: 12, rowLayout: "" }];
   }
   return numbers
     .sort((a, b) => a - b)
-    .map((number) => ({ number, name: `Poradac ${number}`, rows: 5, cols: 12 }));
+    .map((number) => ({ number, name: `Poradac ${number}`, rows: 5, cols: 12, rowLayout: "" }));
 }
 
 function deduplicateOrganizers(list) {
@@ -474,6 +494,7 @@ function deduplicateOrganizers(list) {
         name: item.name || `Poradac ${item.number}`,
         rows: toNonNegativeInt(item.rows) || 5,
         cols: toNonNegativeInt(item.cols) || 12,
+        rowLayout: String(item.rowLayout || "").trim(),
       });
     }
   });
@@ -482,7 +503,7 @@ function deduplicateOrganizers(list) {
 
 function ensureAtLeastOneOrganizer() {
   if (organizers.length === 0) {
-    organizers = [{ number: 1, name: "Poradac 1", rows: 5, cols: 12 }];
+    organizers = [{ number: 1, name: "Poradac 1", rows: 5, cols: 12, rowLayout: "" }];
     saveOrganizers();
   }
 }
@@ -656,7 +677,7 @@ function applyImportedSnapshot(payload, sourceLabel) {
   }
 
   if (nextOrganizers.length === 0) {
-    nextOrganizers = [{ number: 1, name: "Poradac 1", rows: 5, cols: 12 }];
+    nextOrganizers = [{ number: 1, name: "Poradac 1", rows: 5, cols: 12, rowLayout: "" }];
   }
 
   components = nextComponents.filter((item) => {
@@ -695,7 +716,7 @@ function buildOrganizersFromComponentsList(componentList) {
   if (numbers.length === 0) return [];
   return numbers
     .sort((a, b) => a - b)
-    .map((number) => ({ number, name: `Poradac ${number}`, rows: 5, cols: 12 }));
+    .map((number) => ({ number, name: `Poradac ${number}`, rows: 5, cols: 12, rowLayout: "" }));
 }
 
 function resolveCloudJsonUrl(url) {
@@ -712,6 +733,66 @@ function resolveCloudJsonUrl(url) {
   }
 
   return trimmed;
+}
+
+function parseRowLayout(rowLayout, rows, cols) {
+  const text = String(rowLayout || "").trim();
+  if (!text) {
+    return { valid: true, map: {}, errorMessage: "" };
+  }
+
+  const map = {};
+  const parts = text.split(";").map((part) => part.trim()).filter(Boolean);
+  for (const part of parts) {
+    const [rowSpecRaw, slotsRaw] = part.split(":").map((item) => item?.trim());
+    const slots = toNonNegativeInt(slotsRaw);
+    if (!rowSpecRaw || slots <= 0) {
+      return {
+        valid: false,
+        map: {},
+        errorMessage: `Neplatne rozvrzeni "${part}". Pouzij format napr. 11:2;12:1.`,
+      };
+    }
+
+    const rowNumbers = expandRowSpec(rowSpecRaw, rows);
+    if (rowNumbers.length === 0) {
+      return {
+        valid: false,
+        map: {},
+        errorMessage: `Neplatny radek nebo rozsah "${rowSpecRaw}" v rozvrzeni.`,
+      };
+    }
+
+    rowNumbers.forEach((row) => {
+      map[row] = slots;
+    });
+  }
+
+  return { valid: true, map, errorMessage: "" };
+}
+
+function expandRowSpec(spec, maxRows) {
+  const cleaned = String(spec || "").trim();
+  if (!cleaned) return [];
+  if (cleaned.includes("-")) {
+    const [fromRaw, toRaw] = cleaned.split("-").map((s) => toNonNegativeInt(s));
+    if (fromRaw <= 0 || toRaw <= 0 || fromRaw > toRaw || toRaw > maxRows) return [];
+    const rows = [];
+    for (let row = fromRaw; row <= toRaw; row += 1) {
+      rows.push(row);
+    }
+    return rows;
+  }
+  const single = toNonNegativeInt(cleaned);
+  if (single <= 0 || single > maxRows) return [];
+  return [single];
+}
+
+function getSlotsForRow(organizer, row) {
+  const safeRow = Math.max(1, toNonNegativeInt(row));
+  const parsed = parseRowLayout(organizer.rowLayout, organizer.rows, organizer.cols);
+  if (!parsed.valid) return organizer.cols;
+  return parsed.map[safeRow] || organizer.cols;
 }
 
 function getPurchaseListItems() {
@@ -909,7 +990,9 @@ function getOrganizerLabel(number) {
 }
 
 function getOrganizerFormat(organizer) {
-  return `${organizer.rows} x ${organizer.cols}`;
+  const base = `${organizer.rows} x ${organizer.cols}`;
+  if (!organizer.rowLayout) return base;
+  return `${base} (${organizer.rowLayout})`;
 }
 
 function renderAll() {
@@ -974,17 +1057,19 @@ function applyOrganizerLimitsToComponentForm(organizerNumber) {
   if (!organizer) return;
 
   fields.row.max = String(organizer.rows);
-  fields.col.max = String(organizer.cols);
   fields.rowLabel.textContent = `Radek (1-${organizer.rows}) *`;
-  fields.colLabel.textContent = `Sloupec (1-${organizer.cols}) *`;
+  const selectedRow = toNonNegativeInt(fields.row.value) || 1;
+  const maxSlots = getSlotsForRow(organizer, selectedRow);
+  fields.col.max = String(maxSlots);
+  fields.colLabel.textContent = `Sloupec (1-${maxSlots}) *`;
 
   const currentRow = toNonNegativeInt(fields.row.value);
   const currentCol = toNonNegativeInt(fields.col.value);
   if (currentRow > organizer.rows) {
     fields.row.value = String(organizer.rows);
   }
-  if (currentCol > organizer.cols) {
-    fields.col.value = String(organizer.cols);
+  if (currentCol > maxSlots) {
+    fields.col.value = String(maxSlots);
   }
 }
 
@@ -2067,11 +2152,12 @@ function renderGrid() {
   }
   const inOrganizer = components.filter((item) => item.organizer === organizer);
   const highlighted = inOrganizer.find((item) => item.id === highlightedId);
-  visualGrid.style.gridTemplateColumns = `repeat(${Math.max(1, organizerConfig.cols)}, minmax(60px, 1fr))`;
 
-  const cells = [];
+  const rowsMarkup = [];
   for (let row = 1; row <= organizerConfig.rows; row += 1) {
-    for (let col = 1; col <= organizerConfig.cols; col += 1) {
+    const slotsInRow = getSlotsForRow(organizerConfig, row);
+    const cells = [];
+    for (let col = 1; col <= slotsInRow; col += 1) {
       const item = inOrganizer.find((record) => record.row === row && record.col === col);
       const isHighlighted = highlighted && highlighted.row === row && highlighted.col === col;
       const lowStock = item ? isLowStock(item) : false;
@@ -2094,8 +2180,13 @@ function renderGrid() {
         </div>
       `);
     }
+    rowsMarkup.push(`
+      <div class="drawer-row" style="grid-template-columns: repeat(${Math.max(1, slotsInRow)}, minmax(60px, 1fr));">
+        ${cells.join("")}
+      </div>
+    `);
   }
-  visualGrid.innerHTML = cells.join("");
+  visualGrid.innerHTML = rowsMarkup.join("");
   visualGrid.querySelectorAll(".drawer").forEach((drawer) => {
     drawer.addEventListener("click", onDrawerClick);
   });

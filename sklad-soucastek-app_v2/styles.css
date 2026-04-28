@@ -324,7 +324,6 @@ tr.low-stock {
 .grid {
   margin-top: 0.8rem;
   display: grid;
-  grid-template-columns: repeat(12, minmax(60px, 1fr));
   gap: 0.32rem;
   padding: 0.7rem;
   border: 10px solid #0b3dbe;
@@ -337,6 +336,11 @@ tr.low-stock {
     0 8px 18px rgba(20, 35, 70, 0.2);
   max-height: 420px;
   overflow: auto;
+}
+
+.drawer-row {
+  display: grid;
+  gap: 0.32rem;
 }
 
 .drawer {
