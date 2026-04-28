@@ -1112,6 +1112,7 @@ function printSelectedQrLabel() {
           body { font-family: Arial, sans-serif; margin: 14px; }
           .label { width: 88mm; min-height: 48mm; border: 1px dashed #999; border-radius: 8px; padding: 8px; }
           .title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+          .value { font-size: 12px; margin-bottom: 2px; color: #1b2533; }
           .meta { font-size: 12px; color: #444; margin-bottom: 8px; }
           .qr-wrap { display: flex; justify-content: center; margin-top: 4px; }
           .code { font-size: 10px; margin-top: 6px; text-align: center; color: #555; word-break: break-all; }
@@ -1121,6 +1122,7 @@ function printSelectedQrLabel() {
       <body>
         <div class="label">
           <div class="title">${escapeHtml(item.name)}</div>
+          <div class="value">Hodnota: ${escapeHtml(item.value || "-")}</div>
           <div class="meta">${escapeHtml(getOrganizerLabel(item.organizer))}, R${item.row} S${item.col}</div>
           <div id="qr" class="qr-wrap"></div>
           <div class="code">${escapeHtml(payload)}</div>
